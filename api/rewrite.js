@@ -29,24 +29,41 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: "content 不能为空。" });
     }
 
-    const response = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${ZHIPU_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "glm-4-flash",
-        temperature: 0.7,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: `${TONE_PROMPTS[tone]}\n\n原始内容如下：\n${content}`,
-          },
-        ],
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutMs = 55_000;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    let response;
+    try {
+      response = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ZHIPU_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "glm-4-flash",
+          temperature: 0.7,
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: `${TONE_PROMPTS[tone]}\n\n原始内容如下：\n${content}`,
+            },
+          ],
+        }),
+      });
+    } catch (err) {
+      if (err.name === "AbortError") {
+        return res.status(504).json({
+          error: `请求智谱 API 超过 ${timeoutMs / 1000} 秒未返回，请稍后重试或检查网络。`,
+        });
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
 
     const data = await response.json();
     if (!response.ok) {
