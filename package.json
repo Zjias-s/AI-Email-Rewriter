@@ -1,0 +1,10 @@
+{
+  "name": "ai-email-rewriter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Single-page AI email rewriter with Zhipu proxy backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
